@@ -31,6 +31,23 @@ def _queue_text(posts, total: int, page: int) -> str:
     return "\n".join(lines)
 
 
+def _is_media_msg(message) -> bool:
+    return bool(message.photo or message.video)
+
+
+async def _send_queue_list(
+    chat_id: int, bot, session: AsyncSession, page: int
+) -> None:
+    posts, total = await get_queue_page(session, page)
+    text = _queue_text(posts, total, page)
+    if total == 0:
+        await bot.send_message(chat_id, text)
+    else:
+        await bot.send_message(
+            chat_id, text, reply_markup=queue_list_kb(posts, total, page)
+        )
+
+
 @router.message(Command("queue"))
 async def cmd_queue(message: Message, session: AsyncSession) -> None:
     posts, total = await get_queue_page(session, page=0)
@@ -48,12 +65,24 @@ async def cb_queue_page(
     page = callback_data.page
     posts, total = await get_queue_page(session, page)
     text = _queue_text(posts, total, page)
-    if total == 0:
-        await callback.message.edit_text(text)
+
+    if _is_media_msg(callback.message):
+        await callback.message.delete()
+        if total == 0:
+            await callback.bot.send_message(callback.from_user.id, text)
+        else:
+            await callback.bot.send_message(
+                callback.from_user.id,
+                text,
+                reply_markup=queue_list_kb(posts, total, page),
+            )
     else:
-        await callback.message.edit_text(
-            text, reply_markup=queue_list_kb(posts, total, page)
-        )
+        if total == 0:
+            await callback.message.edit_text(text)
+        else:
+            await callback.message.edit_text(
+                text, reply_markup=queue_list_kb(posts, total, page)
+            )
     await callback.answer()
 
 
@@ -66,16 +95,29 @@ async def cb_queue_select(
         await callback.answer("Пост не найден", show_alert=True)
         return
 
-    if post.is_media_group:
-        desc = f"Альбом ({len(post.items)} медиа)"
-    else:
-        desc = "Фото" if post.file_type == "photo" else "Видео"
+    kb = queue_post_actions_kb(post.id, callback_data.page)
 
-    text = f"Пост #{post.id}\nТип: {desc}\nПозиция: {post.position}"
-    await callback.message.edit_text(
-        text,
-        reply_markup=queue_post_actions_kb(post.id, callback_data.page),
-    )
+    if post.is_media_group:
+        first = post.items[0]
+        file_id = first.file_id
+        file_type = first.file_type
+        caption = f"Пост #{post.id} — Альбом ({len(post.items)} медиа)\nПозиция: {post.position}"
+    else:
+        file_id = post.file_id
+        file_type = post.file_type
+        caption = f"Пост #{post.id}\nПозиция: {post.position}"
+
+    await callback.message.delete()
+
+    chat_id = callback.from_user.id
+    if file_type == "photo":
+        await callback.bot.send_photo(
+            chat_id, photo=file_id, caption=caption, reply_markup=kb
+        )
+    else:
+        await callback.bot.send_video(
+            chat_id, video=file_id, caption=caption, reply_markup=kb
+        )
     await callback.answer()
 
 
@@ -89,10 +131,9 @@ async def cb_queue_move(
         return
 
     await callback.answer("Перемещено!")
-    posts, total = await get_queue_page(session, callback_data.page)
-    text = _queue_text(posts, total, callback_data.page)
-    await callback.message.edit_text(
-        text, reply_markup=queue_list_kb(posts, total, callback_data.page)
+    await callback.message.delete()
+    await _send_queue_list(
+        callback.from_user.id, callback.bot, session, callback_data.page
     )
 
 
@@ -100,7 +141,9 @@ async def cb_queue_move(
 async def cb_queue_delete(
     callback: CallbackQuery, callback_data: QueueCB
 ) -> None:
-    await callback.message.edit_text(
+    await callback.message.delete()
+    await callback.bot.send_message(
+        callback.from_user.id,
         "Удалить этот пост из очереди?",
         reply_markup=queue_confirm_delete_kb(callback_data.post_id, callback_data.page),
     )

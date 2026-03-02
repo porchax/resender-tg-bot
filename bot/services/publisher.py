@@ -9,12 +9,14 @@ from bot.config import settings
 from bot.db.models import Post
 from bot.services.queue_service import get_next_queued
 from bot.services.settings_service import get_setting, set_setting
+from bot.utils.formatting import linkify_urls
 
 log = logging.getLogger(__name__)
 
 
 async def publish_post(bot: Bot, session: AsyncSession, post: Post) -> bool:
-    caption = post.caption_override or await get_setting(session, "global_caption") or None
+    raw_caption = post.caption_override or await get_setting(session, "global_caption") or None
+    caption = linkify_urls(raw_caption) if raw_caption else None
 
     try:
         if post.is_media_group:

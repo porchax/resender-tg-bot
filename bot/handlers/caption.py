@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bot.callbacks.data import CaptionCB
 from bot.keyboards.caption_kb import caption_confirm_kb
 from bot.services.settings_service import get_setting, set_setting
+from bot.utils.formatting import linkify_urls
 
 router = Router()
 
@@ -36,9 +37,11 @@ async def cmd_caption(
     new_caption = command.args
     await state.set_state(CaptionStates.waiting_confirm)
     await state.update_data(new_caption=new_caption)
+    preview = linkify_urls(new_caption)
     await message.answer(
-        f"Предпросмотр:\n────────\n{new_caption}\n────────",
+        f"Предпросмотр:\n────────\n{preview}\n────────\n\n💡 URL будут кликабельны автоматически.",
         reply_markup=caption_confirm_kb(),
+        parse_mode="HTML",
     )
 
 
