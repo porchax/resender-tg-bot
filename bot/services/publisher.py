@@ -30,9 +30,9 @@ async def publish_post(bot: Bot, session: AsyncSession, post: Post) -> bool:
             await bot.send_media_group(chat_id=settings.channel_id, media=media)
         else:
             if post.file_type == "photo":
-                await bot.send_photo(chat_id=settings.channel_id, photo=post.file_id, caption=caption)
+                await bot.send_photo(chat_id=settings.channel_id, photo=post.file_id, caption=caption, parse_mode="HTML" if caption else None)
             else:
-                await bot.send_video(chat_id=settings.channel_id, video=post.file_id, caption=caption)
+                await bot.send_video(chat_id=settings.channel_id, video=post.file_id, caption=caption, parse_mode="HTML" if caption else None)
 
         post.status = "published"
         post.published_at = datetime.now(timezone.utc)
