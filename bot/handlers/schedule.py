@@ -47,6 +47,7 @@ async def _flush_and_rebuild(
 
 
 @router.message(Command("schedule"))
+@router.message(F.text == "📅 Расписание")
 async def cmd_schedule(message: Message, session: AsyncSession) -> None:
     text, kb = await _schedule_text_and_kb(session)
     await message.answer(text, reply_markup=kb)

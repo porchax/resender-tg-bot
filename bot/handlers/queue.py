@@ -32,6 +32,7 @@ async def _send_post(
 
 
 @router.message(Command("queue"))
+@router.message(F.text == "📋 Очередь")
 async def cmd_queue(message: Message, session: AsyncSession) -> None:
     post, total = await get_post_at_index(session, 0)
     if post is None:

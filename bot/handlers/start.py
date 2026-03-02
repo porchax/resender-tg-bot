@@ -1,8 +1,24 @@
 from aiogram import F, Router
 from aiogram.filters import Command
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import (
+    CallbackQuery,
+    KeyboardButton,
+    Message,
+    ReplyKeyboardMarkup,
+)
 
 router = Router()
+
+MAIN_KB = ReplyKeyboardMarkup(
+    keyboard=[
+        [
+            KeyboardButton(text="📋 Очередь", style="primary"),
+            KeyboardButton(text="📅 Расписание", style="success"),
+        ],
+    ],
+    resize_keyboard=True,
+    is_persistent=True,
+)
 
 HELP_TEXT = (
     "<b>Команды бота:</b>\n\n"
@@ -24,7 +40,8 @@ async def cmd_start(message: Message) -> None:
     await message.answer(
         "Привет! Я бот для отложенного постинга в канал.\n\n"
         "Пересылайте или отправляйте мне фото/видео — я добавлю их в очередь "
-        "и опубликую по расписанию.\n\n" + HELP_TEXT
+        "и опубликую по расписанию.\n\n" + HELP_TEXT,
+        reply_markup=MAIN_KB,
     )
 
 
