@@ -123,7 +123,7 @@ async def cb_schedule_add(callback: CallbackQuery) -> None:
 async def cb_schedule_set_time(
     callback: CallbackQuery, callback_data: ScheduleCB
 ) -> None:
-    parts = callback_data.value.split(":")
+    parts = callback_data.value.split(".")
     hour, minute = int(parts[0]), int(parts[1])
     await callback.message.edit_text(
         f"Время: {hour:02d}:{minute:02d}\nВыберите день:",
@@ -139,7 +139,7 @@ async def cb_schedule_confirm(
     session: AsyncSession,
     scheduler_service: SchedulerService | None = None,
 ) -> None:
-    parts = callback_data.value.split(":")
+    parts = callback_data.value.split(".")
     hour, minute = int(parts[0]), int(parts[1])
     day_str = parts[2]
     day_of_week = None if day_str == "all" else int(day_str)

@@ -84,7 +84,7 @@ def schedule_add_time_kb() -> InlineKeyboardMarkup:
         row.append(
             InlineKeyboardButton(
                 text=f"{h:02d}:00",
-                callback_data=ScheduleCB(action="set_time", value=f"{h}:0").pack(),
+                callback_data=ScheduleCB(action="set_time", value=f"{h}.0").pack(),
             )
         )
         if len(row) == 4:
@@ -106,7 +106,7 @@ def schedule_add_day_kb(hour: int, minute: int) -> InlineKeyboardMarkup:
     rows.append([
         InlineKeyboardButton(
             text="Каждый день",
-            callback_data=ScheduleCB(action="confirm", value=f"{hour}:{minute}:all").pack(),
+            callback_data=ScheduleCB(action="confirm", value=f"{hour}.{minute}.all").pack(),
             style="success",
         )
     ])
@@ -115,7 +115,7 @@ def schedule_add_day_kb(hour: int, minute: int) -> InlineKeyboardMarkup:
         row.append(
             InlineKeyboardButton(
                 text=name,
-                callback_data=ScheduleCB(action="confirm", value=f"{hour}:{minute}:{i}").pack(),
+                callback_data=ScheduleCB(action="confirm", value=f"{hour}.{minute}.{i}").pack(),
             )
         )
         if len(row) == 4:
