@@ -57,7 +57,7 @@ async def cmd_next(message: Message, session: AsyncSession) -> None:
                 type="date_time",
                 offset=offset,
                 length=len(time_str),
-                date_time=ts,
+                unix_time=ts,
             )
         ]
     else:

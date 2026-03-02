@@ -59,7 +59,7 @@ async def cmd_stats(message: Message, session: AsyncSession) -> None:
                 type="date_time",
                 offset=idx,
                 length=len(last_fmt),
-                date_time=last_ts,
+                unix_time=last_ts,
             )
         )
 
@@ -72,7 +72,7 @@ async def cmd_stats(message: Message, session: AsyncSession) -> None:
                 type="date_time",
                 offset=idx,
                 length=len(next_fmt),
-                date_time=next_ts,
+                unix_time=next_ts,
             )
         )
 
