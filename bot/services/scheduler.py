@@ -1,9 +1,8 @@
-import asyncio
 import logging
 from datetime import datetime, timezone
 
 from aiogram import Bot
-from apscheduler import AsyncScheduler
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
@@ -20,8 +19,7 @@ SCHEDULE_JOB_ID = "publish_job"
 class SchedulerService:
     def __init__(self, bot: Bot) -> None:
         self.bot = bot
-        self.scheduler = AsyncScheduler()
-        self._task: asyncio.Task | None = None
+        self.scheduler = AsyncIOScheduler(timezone=settings.timezone)
 
     async def _publish_tick(self) -> None:
         async with async_session() as session:
@@ -46,99 +44,72 @@ class SchedulerService:
 
             from bot.services.schedule_service import compute_next_fire_time
 
-            last_ts = int(last_str)
-            last_dt = datetime.fromtimestamp(last_ts, tz=timezone.utc)
             now = datetime.now(timezone.utc)
             next_fire = await compute_next_fire_time(session)
 
-            # Only recover if the next scheduled fire time is in the past
-            # AND some time has actually passed since the last publish
-            if next_fire and next_fire.astimezone(timezone.utc) < now and last_dt < now:
+            if next_fire and next_fire.astimezone(timezone.utc) < now:
                 post = await publish_next(self.bot, session)
                 if post:
                     await session.commit()
                     log.info("Recovery: published missed post #%d", post.id)
 
     async def start(self) -> None:
-        await self.scheduler.__aenter__()
         await self._recover_missed()
         await self._rebuild_triggers()
-        self._task = asyncio.create_task(self.scheduler.run_until_stopped())
+        self.scheduler.start()
         log.info("Scheduler started")
 
     async def stop(self) -> None:
-        try:
-            await self.scheduler.stop()
-        except TypeError:
-            # Some APScheduler 4.x versions have sync stop()
-            self.scheduler.stop()
-        if self._task:
-            self._task.cancel()
-            try:
-                await self._task
-            except (asyncio.CancelledError, Exception):
-                pass
-        try:
-            await self.scheduler.__aexit__(None, None, None)
-        except Exception:
-            pass
+        self.scheduler.shutdown(wait=False)
         log.info("Scheduler stopped")
 
     async def rebuild(self) -> None:
         await self._rebuild_triggers()
 
     async def _rebuild_triggers(self) -> None:
-        # Remove old interval trigger
-        try:
-            await self.scheduler.remove_schedule(SCHEDULE_JOB_ID)
-        except Exception:
-            pass
-
-        # Remove old slot triggers
-        from bot.db.models import ScheduleSlot
-        from sqlalchemy import select
+        # Remove all existing jobs
+        self.scheduler.remove_all_jobs()
 
         async with async_session() as session:
-            # Clean up any existing slot schedules
-            result = await session.execute(select(ScheduleSlot))
-            all_slots = list(result.scalars().all())
-            for slot in all_slots:
-                slot_id = f"{SCHEDULE_JOB_ID}_{slot.id}"
-                try:
-                    await self.scheduler.remove_schedule(slot_id)
-                except Exception:
-                    pass
-
             mode = await get_setting(session, "schedule_mode")
 
             if mode == "interval":
                 interval_str = await get_setting(session, "schedule_interval_minutes")
                 minutes = int(interval_str) if interval_str else 60
-                await self.scheduler.add_schedule(
+                self.scheduler.add_job(
                     self._publish_tick,
                     IntervalTrigger(minutes=minutes),
                     id=SCHEDULE_JOB_ID,
+                    replace_existing=True,
                 )
                 log.info("Scheduler: interval mode, every %d min", minutes)
             else:
-                active = [s for s in all_slots if s.is_active]
+                from bot.db.models import ScheduleSlot
+                from sqlalchemy import select
 
-                if not active:
+                result = await session.execute(
+                    select(ScheduleSlot).where(ScheduleSlot.is_active.is_(True))
+                )
+                slots = list(result.scalars().all())
+
+                if not slots:
                     log.info("Scheduler: no active slots")
                     return
 
-                for slot in active:
-                    cron_kwargs = {
+                for slot in slots:
+                    cron_kwargs: dict = {
                         "hour": slot.time.hour,
                         "minute": slot.time.minute,
+                        "timezone": settings.timezone,
                     }
                     if slot.day_of_week is not None:
                         cron_kwargs["day_of_week"] = str(slot.day_of_week)
 
                     slot_id = f"{SCHEDULE_JOB_ID}_{slot.id}"
-                    await self.scheduler.add_schedule(
+                    self.scheduler.add_job(
                         self._publish_tick,
-                        CronTrigger(**cron_kwargs, timezone=settings.timezone),
+                        CronTrigger(**cron_kwargs),
                         id=slot_id,
+                        replace_existing=True,
                     )
-                log.info("Scheduler: slots mode, %d active slot(s)", len(active))
+                log.info("Scheduler: slots mode, %d active slot(s)", len(slots))
