@@ -1,0 +1,17 @@
+[project]
+name = "resender-tg-bot"
+version = "1.0.0"
+description = "Telegram bot for scheduled media posting to a channel"
+requires-python = ">=3.11"
+dependencies = [
+    "aiogram>=3.24,<4",
+    "sqlalchemy[asyncio]>=2.0",
+    "asyncpg>=0.29",
+    "alembic>=1.13",
+    "pydantic-settings>=2.0",
+    "apscheduler>=4.0,<5",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.backends._legacy:_Backend"
