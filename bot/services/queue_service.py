@@ -4,27 +4,6 @@ from sqlalchemy.orm import selectinload
 
 from bot.db.models import Post
 
-PAGE_SIZE = 5
-
-
-async def get_queue_page(
-    session: AsyncSession, page: int = 0
-) -> tuple[list[Post], int]:
-    count_q = select(func.count(Post.id)).where(Post.status == "queued")
-    total = (await session.execute(count_q)).scalar_one()
-
-    q = (
-        select(Post)
-        .where(Post.status == "queued")
-        .order_by(Post.position)
-        .offset(page * PAGE_SIZE)
-        .limit(PAGE_SIZE)
-        .options(selectinload(Post.items))
-    )
-    posts = list((await session.execute(q)).scalars().all())
-    return posts, total
-
-
 async def get_post_by_id(session: AsyncSession, post_id: int) -> Post | None:
     q = (
         select(Post)
@@ -42,44 +21,22 @@ async def delete_post(session: AsyncSession, post_id: int) -> bool:
     return True
 
 
-async def swap_positions(
-    session: AsyncSession, post_id: int, direction: str
-) -> bool:
-    post = await get_post_by_id(session, post_id)
-    if post is None or post.status != "queued":
-        return False
+async def get_post_at_index(
+    session: AsyncSession, index: int
+) -> tuple[Post | None, int]:
+    count_q = select(func.count(Post.id)).where(Post.status == "queued")
+    total = (await session.execute(count_q)).scalar_one()
 
-    if direction == "up":
-        neighbor_q = (
-            select(Post)
-            .where(Post.status == "queued", Post.position < post.position)
-            .order_by(Post.position.desc())
-            .limit(1)
-        )
-    else:
-        neighbor_q = (
-            select(Post)
-            .where(Post.status == "queued", Post.position > post.position)
-            .order_by(Post.position)
-            .limit(1)
-        )
-
-    neighbor = (await session.execute(neighbor_q)).scalar_one_or_none()
-    if neighbor is None:
-        return False
-
-    # Use a temporary value to avoid UNIQUE constraint violation
-    old_post_pos = post.position
-    old_neighbor_pos = neighbor.position
-
-    post.position = -1
-    await session.flush()
-
-    post.position = old_neighbor_pos
-    neighbor.position = old_post_pos
-    await session.flush()
-
-    return True
+    q = (
+        select(Post)
+        .where(Post.status == "queued")
+        .order_by(Post.position)
+        .offset(index)
+        .limit(1)
+        .options(selectinload(Post.items))
+    )
+    post = (await session.execute(q)).scalar_one_or_none()
+    return post, total
 
 
 async def get_next_queued(session: AsyncSession) -> Post | None:

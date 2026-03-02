@@ -2,7 +2,7 @@ from aiogram.filters.callback_data import CallbackData
 
 
 class QueueCB(CallbackData, prefix="q"):
-    action: str  # page, select, delete, confirm_delete, up, down
+    action: str  # page, delete, confirm_delete
     post_id: int = 0
     page: int = 0
 
