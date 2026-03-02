@@ -38,6 +38,19 @@ def queue_nav_kb(post_id: int, index: int, total: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
+def quick_delete_kb(post_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="🗑 Удалить",
+                    callback_data=QueueCB(action="quick_delete", post_id=post_id).pack(),
+                ),
+            ]
+        ]
+    )
+
+
 def queue_confirm_delete_kb(post_id: int, index: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[

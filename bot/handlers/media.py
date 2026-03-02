@@ -2,19 +2,11 @@ from aiogram import F, Router
 from aiogram.types import Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from bot.keyboards.queue_kb import quick_delete_kb
 from bot.services.post_service import create_album_post, create_single_post, extract_file_info
-from bot.services.settings_service import get_setting
-from bot.utils.formatting import linkify_urls
+from bot.utils.caption import get_caption
 
 router = Router()
-
-
-async def _get_caption(session: AsyncSession) -> tuple[str | None, str | None]:
-    """Return (caption, parse_mode) from global caption setting."""
-    raw = await get_setting(session, "global_caption")
-    if raw:
-        return linkify_urls(raw), "HTML"
-    return None, None
 
 
 @router.message(F.media_group_id, F.photo | F.video)
@@ -31,36 +23,36 @@ async def handle_album(
         return
 
     post = await create_album_post(session, items)
-    caption, parse_mode = await _get_caption(session)
+    caption, parse_mode = await get_caption(session)
     first_id, first_type = items[0]
     if first_type == "photo":
         await message.answer_photo(photo=first_id, caption=caption, parse_mode=parse_mode)
     else:
         await message.answer_video(video=first_id, caption=caption, parse_mode=parse_mode)
-    await message.answer("✅ В очереди")
+    await message.answer("✅ В очереди", reply_markup=quick_delete_kb(post.id))
 
 
 @router.message(F.photo)
 async def handle_photo(message: Message, session: AsyncSession) -> None:
     file_id = message.photo[-1].file_id
     post = await create_single_post(session, file_id, "photo")
-    caption, parse_mode = await _get_caption(session)
+    caption, parse_mode = await get_caption(session)
     await message.answer_photo(
         photo=file_id,
         caption=caption,
         parse_mode=parse_mode,
     )
-    await message.answer("✅ В очереди")
+    await message.answer("✅ В очереди", reply_markup=quick_delete_kb(post.id))
 
 
 @router.message(F.video)
 async def handle_video(message: Message, session: AsyncSession) -> None:
     file_id = message.video.file_id
     post = await create_single_post(session, file_id, "video")
-    caption, parse_mode = await _get_caption(session)
+    caption, parse_mode = await get_caption(session)
     await message.answer_video(
         video=file_id,
         caption=caption,
         parse_mode=parse_mode,
     )
-    await message.answer("✅ В очереди")
+    await message.answer("✅ В очереди", reply_markup=quick_delete_kb(post.id))

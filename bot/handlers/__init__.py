@@ -2,6 +2,7 @@ from aiogram import Dispatcher
 
 from bot.handlers.caption import router as caption_router
 from bot.handlers.control import router as control_router
+from bot.handlers.instagram import router as instagram_router
 from bot.handlers.media import router as media_router
 from bot.handlers.publish import router as publish_router
 from bot.handlers.queue import router as queue_router
@@ -19,5 +20,6 @@ def setup_routers(dp: Dispatcher) -> None:
         publish_router,
         control_router,
         stats_router,
+        instagram_router,  # before media — media is catch-all
         media_router,  # last — catches photo/video
     )

@@ -67,6 +67,18 @@ async def cb_queue_delete(
     await callback.answer()
 
 
+@router.callback_query(QueueCB.filter(F.action == "quick_delete"))
+async def cb_quick_delete(
+    callback: CallbackQuery, callback_data: QueueCB, session: AsyncSession
+) -> None:
+    ok = await delete_post(session, callback_data.post_id)
+    if not ok:
+        await callback.answer("Пост не найден", show_alert=True)
+        return
+    await callback.message.edit_text("🗑 Удалено из очереди")
+    await callback.answer("Удалено!")
+
+
 @router.callback_query(QueueCB.filter(F.action == "confirm_delete"))
 async def cb_queue_confirm_delete(
     callback: CallbackQuery, callback_data: QueueCB, session: AsyncSession
