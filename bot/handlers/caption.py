@@ -1,3 +1,5 @@
+import re
+
 from aiogram import F, Router
 from aiogram.filters import Command, CommandObject
 from aiogram.fsm.context import FSMContext
@@ -11,6 +13,8 @@ from bot.services.settings_service import get_setting, set_setting
 from bot.utils.formatting import linkify_urls
 
 router = Router()
+
+_CMD_PREFIX_RE = re.compile(r"^/caption(?:@\S+)?\s*", re.IGNORECASE)
 
 
 class CaptionStates(StatesGroup):
@@ -27,14 +31,19 @@ async def cmd_caption(
     if not command.args:
         current = await get_setting(session, "global_caption")
         if current:
-            await message.answer(f"Текущая подпись:\n────────\n{current}\n────────")
+            await message.answer(
+                f"Текущая подпись:\n────────\n{current}\n────────",
+                parse_mode="HTML",
+            )
         else:
             await message.answer(
-                "Подпись не задана.\n\nИспользуйте: /caption &lt;текст&gt;"
+                "Подпись не задана.\n\nИспользуйте: /caption <текст>"
             )
         return
 
-    new_caption = command.args
+    # Extract HTML from message to preserve Telegram entities (inline links, bold, etc.)
+    new_caption = _CMD_PREFIX_RE.sub("", message.html_text, count=1)
+
     await state.set_state(CaptionStates.waiting_confirm)
     await state.update_data(new_caption=new_caption)
     preview = linkify_urls(new_caption)
@@ -59,7 +68,10 @@ async def cb_caption_save(
 
     await set_setting(session, "global_caption", new_caption)
     await state.clear()
-    await callback.message.edit_text(f"Подпись сохранена:\n────────\n{new_caption}\n────────")
+    await callback.message.edit_text(
+        f"Подпись сохранена:\n────────\n{new_caption}\n────────",
+        parse_mode="HTML",
+    )
     await callback.answer("Сохранено!")
 
 
