@@ -4,7 +4,7 @@ from aiogram import F, Router
 from aiogram.filters import Command, CommandObject
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, LinkPreviewOptions, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.callbacks.data import CaptionCB
@@ -34,6 +34,7 @@ async def cmd_caption(
             await message.answer(
                 f"Текущая подпись:\n────────\n{current}\n────────",
                 parse_mode="HTML",
+                link_preview_options=LinkPreviewOptions(is_disabled=True),
             )
         else:
             await message.answer(
@@ -51,6 +52,7 @@ async def cmd_caption(
         f"Предпросмотр:\n────────\n{preview}\n────────\n\n💡 URL будут кликабельны автоматически.",
         reply_markup=caption_confirm_kb(),
         parse_mode="HTML",
+        link_preview_options=LinkPreviewOptions(is_disabled=True),
     )
 
 
@@ -71,6 +73,7 @@ async def cb_caption_save(
     await callback.message.edit_text(
         f"Подпись сохранена:\n────────\n{new_caption}\n────────",
         parse_mode="HTML",
+        link_preview_options=LinkPreviewOptions(is_disabled=True),
     )
     await callback.answer("Сохранено!")
 
